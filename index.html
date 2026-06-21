@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>🎯 猜数字游戏</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sky: #6EC6F5;
+    --sun: #FFD93D;
+    --grass: #6BCB77;
+    --coral: #FF6B6B;
+    --purple: #C77DFF;
+    --white: #FFFDF7;
+    --ink: #2D2A4A;
+    --card: #FFFFFF;
+  }
+
+  body {
+    font-family: 'Nunito', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    background: linear-gradient(180deg, #B8E8FF 0%, #D5F5D5 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  /* floating clouds */
+  .clouds {
+    position: fixed; top: 0; left: 0; width: 100%; pointer-events: none; z-index: 0;
+  }
+  .cloud {
+    position: absolute;
+    background: white;
+    border-radius: 50px;
+    opacity: 0.85;
+  }
+  .cloud::before, .cloud::after {
+    content: ''; position: absolute; background: white; border-radius: 50%;
+  }
+  .c1 { width: 90px; height: 30px; top: 20px; left: -30px; animation: drift 18s linear infinite; }
+  .c1::before { width: 40px; height: 40px; top: -18px; left: 12px; }
+  .c1::after  { width: 28px; height: 28px; top: -12px; left: 44px; }
+  .c2 { width: 70px; height: 24px; top: 55px; left: -20px; animation: drift 24s linear infinite 6s; opacity: 0.65; }
+  .c2::before { width: 30px; height: 30px; top: -14px; left: 10px; }
+  .c2::after  { width: 22px; height: 22px; top: -10px; left: 36px; }
+  .c3 { width: 110px; height: 34px; top: 10px; left: -40px; animation: drift 30s linear infinite 12s; opacity: 0.5; }
+  .c3::before { width: 48px; height: 48px; top: -22px; left: 16px; }
+  .c3::after  { width: 34px; height: 34px; top: -15px; left: 58px; }
+
+  @keyframes drift {
+    from { transform: translateX(-50px); }
+    to   { transform: translateX(calc(100vw + 150px)); }
+  }
+
+  /* main card */
+  .card {
+    position: relative; z-index: 1;
+    background: var(--card);
+    border-radius: 32px;
+    box-shadow: 0 8px 0 #A8D8A8, 0 12px 32px rgba(0,0,0,0.12);
+    padding: 2rem 1.5rem 2.5rem;
+    width: min(92vw, 380px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.1rem;
+  }
+
+  .mascot {
+    font-size: 64px;
+    line-height: 1;
+    animation: bob 2.5s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+
+  .title {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--ink);
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* hint bubble */
+  .bubble {
+    width: 100%;
+    border-radius: 20px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+    transition: background 0.3s;
+    background: #F0F8FF;
+    border: 3px solid #C5E8FF;
+    min-height: 82px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px;
+  }
+  .bubble.big { background: #FFF8E1; border-color: #FFD93D; }
+  .bubble.small { background: #E8F5FF; border-color: #6EC6F5; }
+  .bubble.win { background: #E8FFE8; border-color: var(--grass); }
+  .bubble.warn { background: #FFF0F0; border-color: var(--coral); }
+
+  .bubble-emoji { font-size: 32px; line-height: 1; }
+  .bubble-text {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--ink);
+  }
+  .bubble-sub {
+    font-size: 15px;
+    font-weight: 700;
+    color: #666;
+  }
+
+  /* range strip */
+  .range-strip {
+    font-size: 14px;
+    font-weight: 700;
+    color: #888;
+    background: #F5F5F5;
+    border-radius: 20px;
+    padding: 5px 14px;
+    letter-spacing: 0.3px;
+  }
+
+  /* big number input */
+  .num-input {
+    font-family: 'Nunito', sans-serif;
+    font-size: 44px;
+    font-weight: 900;
+    color: var(--ink);
+    width: 100%;
+    text-align: center;
+    border: 4px solid #E0E0E0;
+    border-radius: 20px;
+    padding: 10px 8px;
+    outline: none;
+    background: #FAFAFA;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -moz-appearance: textfield;
+  }
+  .num-input::-webkit-inner-spin-button,
+  .num-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .num-input:focus {
+    border-color: var(--sky);
+    box-shadow: 0 0 0 4px rgba(110,198,245,0.25);
+    background: white;
+  }
+
+  /* guess button */
+  .btn-guess {
+    width: 100%;
+    font-family: 'Nunito', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: white;
+    background: var(--coral);
+    border: none;
+    border-radius: 20px;
+    padding: 14px 0;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #C44B4B;
+    transition: transform 0.1s, box-shadow 0.1s;
+    letter-spacing: 1px;
+  }
+  .btn-guess:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #C44B4B;
+  }
+
+  /* win panel */
+  .win-panel {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .star-row { font-size: 32px; letter-spacing: 4px; }
+  .win-big { font-size: 26px; font-weight: 900; color: var(--ink); text-align: center; }
+  .win-sub { font-size: 15px; font-weight: 700; color: #888; }
+  .btn-restart {
+    font-family: 'Nunito', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: white;
+    background: var(--grass);
+    border: none;
+    border-radius: 20px;
+    padding: 12px 36px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #3E9B49;
+    margin-top: 4px;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn-restart:active { transform: translateY(3px); box-shadow: 0 2px 0 #3E9B49; }
+
+  /* history */
+  .history-wrap { width: 100%; }
+  .history-label { font-size: 13px; font-weight: 700; color: #AAA; margin-bottom: 6px; text-align: center; }
+  .history-list {
+    display: flex; flex-direction: column; gap: 5px;
+    max-height: 200px; overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .history-list::-webkit-scrollbar { display: none; }
+  .h-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #F8F8F8; border-radius: 14px;
+    padding: 7px 14px; font-size: 15px; font-weight: 700;
+  }
+  .h-num { color: var(--ink); }
+  .h-tag { font-size: 13px; }
+  .h-tag.big  { color: var(--coral); }
+  .h-tag.small{ color: var(--sky); }
+  .h-tag.win  { color: var(--grass); }
+
+  /* confetti canvas */
+  #confetti-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="clouds" aria-hidden="true">
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+</div>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="card" role="main">
+
+  <div class="mascot" id="mascot" aria-hidden="true">🐻</div>
+
+  <div class="title">猜猜我的数字！</div>
+
+  <div class="bubble" id="bubble">
+    <div class="bubble-emoji" id="bubble-emoji">🤔</div>
+    <div class="bubble-text" id="bubble-text">1 到 100 里面</div>
+    <div class="bubble-sub" id="bubble-sub">你来猜猜看吧！</div>
+  </div>
+
+  <div class="range-strip" id="range-strip">范围：1 ～ 100</div>
+
+  <div id="game-area" style="width:100%; display:flex; flex-direction:column; gap:12px;">
+    <input
+      type="number" inputmode="numeric" pattern="[0-9]*"
+      id="guess-input" class="num-input"
+      min="1" max="100" placeholder="？"
+      aria-label="输入你猜的数字"
+    />
+    <button class="btn-guess" id="guess-btn" onclick="submitGuess()">我猜这个！🎯</button>
+  </div>
+
+  <div class="win-panel" id="win-panel">
+    <div class="star-row">⭐⭐⭐</div>
+    <div class="win-big" id="win-big">猜对啦！是 42！</div>
+    <div class="win-sub" id="win-sub">猜了 5 次，好棒！</div>
+    <button class="btn-restart" onclick="restartGame()">再玩一次 🔄</button>
+  </div>
+
+  <div class="history-wrap" id="history-wrap" style="display:none">
+    <div class="history-label" id="history-label">猜过的数字</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+</div>
+
+<script>
+  let target, attempts, lo, hi, history;
+
+  const mascots = ['🐻','🐼','🐸','🐯','🐮','🦊','🐨','🐱','🦁','🐧'];
+
+  function startGame() {
+    target = Math.floor(Math.random() * 100) + 1;
+    attempts = 0; lo = 1; hi = 100; history = [];
+
+    const m = mascots[Math.floor(Math.random() * mascots.length)];
+    document.getElementById('mascot').textContent = m;
+
+    setBubble('default', '🤔', '1 到 100 里面', '你来猜猜看吧！');
+    document.getElementById('range-strip').textContent = '范围：1 ～ 100';
+    document.getElementById('game-area').style.display = 'flex';
+    document.getElementById('win-panel').style.display = 'none';
+    document.getElementById('history-wrap').style.display = 'none';
+    document.getElementById('history-list').innerHTML = '';
+    document.getElementById('guess-input').value = '';
+    setTimeout(() => document.getElementById('guess-input').focus(), 100);
+  }
+
+  function setBubble(type, emoji, text, sub) {
+    const b = document.getElementById('bubble');
+    b.className = 'bubble';
+    if (type !== 'default') b.classList.add(type);
+    document.getElementById('bubble-emoji').textContent = emoji;
+    document.getElementById('bubble-text').textContent = text;
+    document.getElementById('bubble-sub').textContent = sub;
+  }
+
+  function submitGuess() {
+    const inp = document.getElementById('guess-input');
+    const val = parseInt(inp.value, 10);
+    if (isNaN(val) || val < 1 || val > 100) {
+      setBubble('warn', '😅', '请输入 1 到 100！', '数字不对哦，再试试');
+      inp.value = ''; inp.focus();
+      return;
+    }
+    attempts++;
+
+    if (val === target) {
+      handleWin(val);
+    } else if (val > target) {
+      lo = Math.min(lo, val);  // keep range meaningful
+      hi = Math.min(hi, val - 1);
+      setBubble('big', '📉', val + ' 猜大啦！', '往小一点试试看～');
+      addHistory(val, 'big');
+    } else {
+      lo = Math.max(lo, val + 1);
+      setBubble('small', '📈', val + ' 猜小啦！', '往大一点试试看～');
+      addHistory(val, 'small');
+    }
+
+    if (val !== target) {
+      document.getElementById('range-strip').textContent = '范围：' + lo + ' ～ ' + hi;
+      inp.value = ''; inp.focus();
+    }
+  }
+
+  function addHistory(val, type) {
+    const labels = { big: '猜大了 ↓', small: '猜小了 ↑', win: '猜对了 🎉' };
+    history.unshift({ val, type, round: attempts });
+    const wrap = document.getElementById('history-wrap');
+    const list = document.getElementById('history-list');
+    const label = document.getElementById('history-label');
+    wrap.style.display = 'block';
+    label.textContent = '猜过的数字（共 ' + attempts + ' 次）';
+    list.innerHTML = history.map(h =>
+      `<div class="h-item">
+        <span class="h-num">第${h.round}次：${h.val}</span>
+        <span class="h-tag ${h.type === 'big' ? 'big' : h.type === 'small' ? 'small' : 'win'}">${labels[h.type]}</span>
+      </div>`
+    ).join('');
+  }
+
+  function handleWin(val) {
+    addHistory(val, 'win');
+    setBubble('win', '🎉', '答对啦！', '');
+    document.getElementById('game-area').style.display = 'none';
+    document.getElementById('range-strip').style.display = 'none';
+    const panel = document.getElementById('win-panel');
+    panel.style.display = 'flex';
+    document.getElementById('win-big').textContent = '答案就是 ' + target + ' ！';
+    const praise = attempts <= 5 ? '好厉害呀！🌟' : attempts <= 8 ? '做得不错！👍' : '继续加油！💪';
+    document.getElementById('win-sub').textContent = '猜了 ' + attempts + ' 次，' + praise;
+    launchConfetti();
+    document.getElementById('mascot').style.animation = 'none';
+    document.getElementById('mascot').style.transform = 'scale(1.3)';
+    setTimeout(() => {
+      document.getElementById('mascot').style.transform = '';
+      document.getElementById('mascot').style.animation = '';
+    }, 600);
+  }
+
+  function restartGame() {
+    document.getElementById('range-strip').style.display = '';
+    startGame();
+  }
+
+  document.getElementById('guess-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitGuess();
+  });
+
+  /* ---- confetti ---- */
+  function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const colors = ['#FFD93D','#FF6B6B','#6BCB77','#6EC6F5','#C77DFF','#FF9F43'];
+    const pieces = Array.from({ length: 100 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      r: Math.random() * 8 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speed: Math.random() * 4 + 2,
+      spin: (Math.random() - 0.5) * 0.2,
+      angle: 0,
+      sway: Math.random() * 2 - 1,
+      swaySpeed: Math.random() * 0.04 + 0.01
+    }));
+    let frame = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pieces.forEach(p => {
+        p.y += p.speed;
+        p.x += Math.sin(frame * p.swaySpeed) * p.sway;
+        p.angle += p.spin;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 0.5);
+        ctx.restore();
+      });
+      frame++;
+      if (frame < 200) requestAnimationFrame(draw);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    draw();
+  }
+
+  startGame();
+</script>
+</body>
+</html>
